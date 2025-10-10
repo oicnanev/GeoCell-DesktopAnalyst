@@ -32,6 +32,7 @@ dependencies {
     implementation("org.locationtech.jts:jts-core:1.19.0")
 
     // Database PostgreSQL with PostGIS
+    implementation("io.github.cdimascio:dotenv-kotlin:6.4.1")
     implementation("org.postgresql:postgresql:42.7.7")
     implementation("net.postgis:postgis-jdbc:2.5.1")
 
