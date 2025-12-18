@@ -1,0 +1,10 @@
+<component name="libraryTable">
+  <library name="Gradle: :javafx.graphics:" type="java-imported" external-system-id="GRADLE">
+    <properties artifactId="javafx.graphics" />
+    <CLASSES>
+      <root url="jar://$PROJECT_DIR$/libs/javafx-sdk-21-linux/lib/javafx.graphics.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>

@@ -10,7 +10,7 @@ version = "1.0.0"
 
 val javafxVersion = "21"
 val javafxPlatform = when {
-    org.gradle.internal.os.OperatingSystem.current().isWindows -> "win"
+    org.gradle.internal.os.OperatingSystem.current().isWindows -> "windows"
     org.gradle.internal.os.OperatingSystem.current().isMacOsX -> "mac"
     else -> "linux"
 }
@@ -32,11 +32,9 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-javafx:1.8.0")
 
-    // JavaFX via flatDir - corrigido para usar a estrutura correta de pastas
+    // JavaFX via flatDir
     listOf("base", "controls", "fxml", "graphics").forEach { module ->
-        //implementation("org.openjfx:javafx-$module:$javafxVersion")
         implementation(mapOf("name" to "javafx.$module", "ext" to "jar"))
-        //implementation(fileTree(javafxLibPath) { include("javafx-$module*.jar") })
     }
 
     // Outras dependências
@@ -70,29 +68,17 @@ tasks {
 application {
     mainClass.set("com.geocell.desktopanalyst.KmzExporterAppKt")
     applicationDefaultJvmArgs = listOf(
-        "--module-path=$javafxLibPath",
-        "--add-modules=javafx.controls,javafx.fxml,javafx.graphics,javafx.base",
         "--add-opens=javafx.controls/javafx.scene.control=ALL-UNNAMED",
         "--add-opens=javafx.graphics/javafx.scene=ALL-UNNAMED",
-        "--add-opens=javafx.graphics/com.sun.javafx.css=ALL-UNNAMED",
         "--enable-native-access=javafx.graphics",
-        "--add-opens=javafx.graphics/com.sun.marlin=ALL-UNNAMED",
-        "--add-opens=javafx.graphics/com.sun.javafx.geom=ALL-UNNAMED",
-        "--add-opens=javafx.graphics/com.sun.javafx.util=ALL-UNNAMED",
-        "--add-opens=java.base/java.lang=ALL-UNNAMED",
-        "--add-opens=java.base/java.io=ALL-UNNAMED",
-        "-Dprism.verbose=true" // Opcional: para debug de rendering
+        "--add-opens", "javafx.graphics/com.sun.marlin=ALL-UNNAMED"
     )
 }
 
 tasks.withType<JavaExec> {
     jvmArgs = listOf(
-        "--module-path=$javafxLibPath",
-        "--add-modules=javafx.controls,javafx.fxml,javafx.graphics,javafx.base",
         "--add-opens=javafx.controls/javafx.scene.control=ALL-UNNAMED",
-        "--add-opens=javafx.graphics/javafx.scene=ALL-UNNAMED",
-        "--enable-native-access=javafx.graphics",
-        "--add-opens=javafx.graphics/com.sun.marlin=ALL-UNNAMED"
+        "--add-opens=javafx.graphics/javafx.scene=ALL-UNNAMED"
     )
 }
 
@@ -124,33 +110,6 @@ tasks.register<Exec>("jpackage") {
         "--java-options", "-Xmx2048m",
         "--java-options", "-Dprism.order=sw",
         "--module-path", javafxLibPath,
-        "--add-modules", "javafx.controls,javafx.fxml,javafx.graphics,javafx.base,java.sql,java.naming,jdk.unsupported,java.scripting",
-        "--java-options", "--enable-native-access=javafx.graphics",
-        "--java-options", "--add-opens=javafx.graphics/com.sun.marlin=ALL-UNNAMED"
+        "--add-modules", "javafx.controls,javafx.fxml,javafx.graphics,javafx.base,java.sql,java.naming,jdk.unsupported,java.scripting"
     )
-}
-
-// Task para verificar se o JavaFX está configurado corretamente
-tasks.register("checkJavaFX") {
-    group = "verification"
-    description = "Checks if JavaFX is properly configured"
-
-    doLast {
-        val javafxDir = file(javafxLibPath)
-        if (!javafxDir.exists()) {
-            throw GradleException("JavaFX SDK not found at: $javafxLibPath\n" +
-                    "Please download JavaFX $javafxVersion from https://gluonhq.com/products/javafx/\n" +
-                    "and extract it to libs/javafx-sdk-$javafxVersion/")
-        }
-
-        println("JavaFX found at: ${javafxDir.absolutePath}")
-        javafxDir.listFiles()?.forEach { file ->
-            println("  - ${file.name}")
-        }
-    }
-}
-
-// Executa o checkJavaFX antes de compilar
-tasks.named("compileKotlin") {
-    dependsOn("checkJavaFX")
 }

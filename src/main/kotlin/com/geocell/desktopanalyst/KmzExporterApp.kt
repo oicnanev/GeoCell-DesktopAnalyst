@@ -1,20 +1,13 @@
 package com.geocell.desktopanalyst
 
 import com.geocell.desktopanalyst.controller.MainController
+import com.geocell.desktopanalyst.view.MainView
 import javafx.application.Application
-import javafx.geometry.Insets
 import javafx.scene.Scene
-import javafx.scene.control.Button
-import javafx.scene.control.Label
-import javafx.scene.control.ProgressBar
-import javafx.scene.layout.VBox
-import javafx.stage.FileChooser
 import javafx.stage.Stage
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.javafx.JavaFx
-import kotlinx.coroutines.launch
-import java.io.File
 
 /**
  * Main JavaFX application for exporting cellular network data to KMZ format.
@@ -32,7 +25,6 @@ import java.io.File
  * @since 1.0.0
  */
 class KmzExporterApp : Application() {
-
     private val controller = MainController()
     private val scope = CoroutineScope(Dispatchers.JavaFx)
 
@@ -47,66 +39,85 @@ class KmzExporterApp : Application() {
      * the application scene can be set
      */
     override fun start(primaryStage: Stage) {
-        primaryStage.title = "Cell KMZ Exporter"
+        primaryStage.title = "Cell KMZ Exporter - Desktop Analyst"
 
-        // UI Components
-        val selectCsvBtn = Button("Select CSV File")
-        val csvPathLabel = Label("No file selected")
-        val exportBtn = Button("Export to KMZ")
-        val progressBar = ProgressBar()
-        val statusLabel = Label("Ready")
+        val mainView = MainView()
 
-        var selectedCsvFile: File? = null
+        // Buttons event handlers for the buttons
+        setupEventHandlers(mainView)
 
-        // CSV File Selection Handler
-        selectCsvBtn.setOnAction {
-            FileChooser().apply {
-                title = "Select CSV File"
-                extensionFilters.add(FileChooser.ExtensionFilter("CSV Files", "*.csv"))
-            }.showOpenDialog(primaryStage)?.let { file ->
-                selectedCsvFile = file
-                csvPathLabel.text = file.name
-            }
-        }
-
-        // KMZ Export Handler
-        exportBtn.setOnAction {
-            selectedCsvFile?.let { csvFile ->
-                FileChooser().apply {
-                    title = "Save KMZ File"
-                    extensionFilters.add(FileChooser.ExtensionFilter("KMZ Files", "*.kmz"))
-                }.showSaveDialog(primaryStage)?.let { outputFile ->
-                    scope.launch {
-                        // Update UI for processing state
-                        exportBtn.isDisable = true
-                        progressBar.progress = ProgressBar.INDETERMINATE_PROGRESS
-                        statusLabel.text = "Processing..."
-
-                        // Execute export process
-                        val success = controller.processCsvToKmz(csvFile, outputFile)
-
-                        // Update UI with result
-                        statusLabel.text = if (success) "Export completed!" else "Export failed!"
-                        progressBar.progress = if (success) 1.0 else 0.0
-                        exportBtn.isDisable = false
-                    }
-                }
-            }
-        }
-
-        // Layout Configuration
-        val layout = VBox(10.0).apply {
-            children.addAll(
-                selectCsvBtn, csvPathLabel, exportBtn, progressBar, statusLabel
-            )
-            padding = Insets(20.0)
-        }
-
-        primaryStage.scene = Scene(layout, 400.0, 200.0)
+        val scene = Scene(mainView, 800.0, 700.0)
+        primaryStage.scene = scene
         primaryStage.show()
 
-        // Initialize database connection
+        // start DB
         controller.initializeDatabase()
+    }
+
+    private fun setupEventHandlers(mainView: MainView) {
+        // QueryDB Button Handler (main filter section)
+        mainView.getQueryButton().setOnAction {
+            println("QueryDB button clicked")
+            // TODO: implement access to DB logic
+            // based on the selected filters
+            val selectedTechnologies = mainView.getTechnologyCheckboxes()
+                .filter { it.isSelected }
+                .map {it.text}
+
+            val selectedOperators = mainView.getOperatorCheckboxes()
+                .filter { it.isSelected }
+                .map { it.text }
+
+            val datePickers = mainView.getDatePickers()
+            val fromDate = datePickers[0].value
+            val untilDate = datePickers[1].value
+
+            println("""
+                Technologies: $selectedTechnologies
+                Operators: $selectedOperators
+                From: $fromDate
+                Until: $untilDate
+            """.trimIndent())
+        }
+
+        // Export KMZ Button Handler
+        mainView.getExportButton().setOnAction {
+            println("Export to KMZ button clicked")
+            // TODO: implement export logic
+        }
+
+        // Neighbors Tab handlers
+        val neighborsTab = mainView.getNeighborsTab()
+        neighborsTab.getQueryButton().setOnAction {
+            neighborsTab.queryNeighbors()
+        }
+
+        // Geographic Tab handlers
+        val geographicTab = mainView.getGeographicTab()
+        geographicTab.getQueryCircleButton().setOnAction {
+            geographicTab.queryCircle()
+        }
+        geographicTab.getQueryRectangleButton().setOnAction {
+            geographicTab.queryRectangle()
+        }
+
+        // Administrative Tab handlers
+        val administrativeTab = mainView.getAdministrativeTab()
+        administrativeTab.getQueryButton().setOnAction {
+            administrativeTab.queryAdministrativeRegion()
+        }
+
+        // Network Tab handlers
+        val networkTab = mainView.getNetworkTab()
+        networkTab.getQueryLacTacButton().setOnAction {
+            networkTab.queryByLacTac()
+        }
+        networkTab.getQueryEnbGnbButton().setOnAction {
+            networkTab.queryByEnbGnb()
+        }
+        networkTab.getQueryBandButton().setOnAction {
+            networkTab.queryByBand()
+        }
     }
 
     /**

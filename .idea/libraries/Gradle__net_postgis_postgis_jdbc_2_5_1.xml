@@ -1,0 +1,10 @@
+<component name="libraryTable">
+  <library name="Gradle: net.postgis:postgis-jdbc:2.5.1" type="java-imported" external-system-id="GRADLE">
+    <properties groupId="net.postgis" artifactId="postgis-jdbc" version="2.5.1" baseVersion="2.5.1" />
+    <CLASSES>
+      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/net.postgis/postgis-jdbc/2.5.1/7ff2bc6fb22021a33656e4797f8ed8c301122dc2/postgis-jdbc-2.5.1.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>
