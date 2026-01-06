@@ -5,6 +5,8 @@
       <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/net.postgis/postgis-geometry/2.5.1/2478f861a9cd7d40b5d38e75a8b54d4474e65a54/postgis-geometry-2.5.1.jar!/" />
     </CLASSES>
     <JAVADOC />
-    <SOURCES />
+    <SOURCES>
+      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/net.postgis/postgis-geometry/2.5.1/795c58aa29e2292e5d4407790e71cb6bbde70438/postgis-geometry-2.5.1-sources.jar!/" />
+    </SOURCES>
   </library>
 </component>

@@ -5,6 +5,8 @@
       <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/com.github.doyaaaaaken/kotlin-csv-jvm/1.9.2/afb1e3abef98fe4cf020aa17dc30fe8aa7ec6aa9/kotlin-csv-jvm-1.9.2.jar!/" />
     </CLASSES>
     <JAVADOC />
-    <SOURCES />
+    <SOURCES>
+      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/com.github.doyaaaaaken/kotlin-csv-jvm/1.9.2/300e89dc6d2aada4d7a243054fc049b1053d5b5e/kotlin-csv-jvm-1.9.2-sources.jar!/" />
+    </SOURCES>
   </library>
 </component>

@@ -34,32 +34,6 @@ import org.jetbrains.exposed.sql.javatime.date
  * @property modifier the identifier of the user or system that last modified the record
  *
  * @sample
- * ```
- * // SQL equivalent table definition:
- * // CREATE TABLE geocell_cell (
- * //   id BIGSERIAL PRIMARY KEY,
- * //   lac_tac VARCHAR(50) NOT NULL,
- * //   enb_gnb_id BIGINT REFERENCES geocell_enbgnb(id),
- * //   ci VARCHAR(20),
- * //   eci_nci VARCHAR(20),
- * //   cgi VARCHAR(30),
- * //   paragon_cgi VARCHAR(30),
- * //   mcc_mnc_id INTEGER REFERENCES geocell_mccmnc(mnc),
- * //   technology INTEGER DEFAULT 0,
- * //   band_id BIGINT REFERENCES geocell_band(id),
- * //   direction INTEGER DEFAULT 0,
- * //   name VARCHAR(200),
- * //   location_id BIGINT REFERENCES geocell_location(id),
- * //   created DATE NOT NULL,
- * //   owner_id VARCHAR(100),
- * //   modified DATE NOT NULL,
- * //   modifier_id VARCHAR(100)
- * // );
- * ```
- *
- * @see EnbGnbTable
- * @see MccMncTable
- * @see BandTable
  * @see LocationTable
  * @see org.jetbrains.exposed.sql.Table
  * @since 1.0.0
@@ -72,7 +46,7 @@ object CellTable : Table("geocell_cell") {
     val eciNci = varchar("eci_nci", length = 20).nullable()
     val cgi = varchar("cgi", length = 30).nullable()
     val paragonCgi = varchar("paragon_cgi", length = 30).nullable()
-    val mccMnc = integer("mcc_mnc_id").references(MccMncTable.mnc).nullable()
+    val mccMnc = long("mcc_mnc_id").references(MccMncTable.id).nullable()
     val technology = integer("technology").default(0)
     val band = long("band_id").references(BandTable.id).nullable()
     val direction = integer("direction").default(0)

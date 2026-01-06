@@ -56,8 +56,8 @@ package com.geocell.desktopanalyst.model.domain
  */
 data class MCCMNC(
     val type: String?,
-    val mcc: Int,
-    val mnc: Int,
+    val mcc: Int?,
+    val mnc: Int?,
     val operator: String?,
     val country: Country?,
     val brand: String?,

@@ -77,5 +77,6 @@ data class Cell(
     val mccMnc: MCCMNC?,
     val color: String? = null,
     val target: String? = null,
-    val notes: String? = null
+    val notes: String? = null,
+    var distanceFromReference: Double? = null
 )

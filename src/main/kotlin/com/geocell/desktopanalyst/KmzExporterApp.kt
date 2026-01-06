@@ -55,6 +55,10 @@ class KmzExporterApp : Application() {
     }
 
     private fun setupEventHandlers(mainView: MainView) {
+        // Pass controller and main view references to tabs that need them
+        mainView.getNeighborsTab().setController(controller)
+        mainView.getNeighborsTab().setMainView(mainView)
+
         // QueryDB Button Handler (main filter section)
         mainView.getQueryButton().setOnAction {
             println("QueryDB button clicked")

@@ -5,6 +5,8 @@
       <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/org.jetbrains.exposed/exposed-dao/0.44.0/3aa0b228eee360fcba6eebe9404e58b0a9d73a14/exposed-dao-0.44.0.jar!/" />
     </CLASSES>
     <JAVADOC />
-    <SOURCES />
+    <SOURCES>
+      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/org.jetbrains.exposed/exposed-dao/0.44.0/96153415a6a7f43fd52dba6dfc4cb0ca99266ba/exposed-dao-0.44.0-sources.jar!/" />
+    </SOURCES>
   </library>
 </component>

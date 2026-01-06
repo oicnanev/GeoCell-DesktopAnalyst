@@ -57,8 +57,8 @@ data class Location(
     val coordinates: Point?,
     val address: String?,
     val address1: String?,
-    val zip4: Int,
-    val zip3: Int,
+    val zip4: Int?,
+    val zip3: Int?,
     val postalDesignation: String?,
     val idCounty: Long?
 )

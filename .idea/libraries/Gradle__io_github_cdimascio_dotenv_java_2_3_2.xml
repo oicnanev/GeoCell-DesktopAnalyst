@@ -5,6 +5,8 @@
       <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/io.github.cdimascio/dotenv-java/2.3.2/709ce3e74d65eda1a7d29602d513b53492807ff8/dotenv-java-2.3.2.jar!/" />
     </CLASSES>
     <JAVADOC />
-    <SOURCES />
+    <SOURCES>
+      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/io.github.cdimascio/dotenv-java/2.3.2/cc1a6bfaa544ae22b1fe4acdac218c857f73e545/dotenv-java-2.3.2-sources.jar!/" />
+    </SOURCES>
   </library>
 </component>

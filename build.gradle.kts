@@ -68,7 +68,7 @@ tasks {
 }
 
 application {
-    mainClass.set("com.geocell.desktopanalyst.KmzExporterAppKt")
+    mainClass.set("com.geocell.desktopanalyst.KmzExporterApp")
     applicationDefaultJvmArgs = listOf(
         "--module-path=$javafxLibPath",
         "--add-modules=javafx.controls,javafx.fxml,javafx.graphics,javafx.base",

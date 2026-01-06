@@ -5,6 +5,8 @@
       <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/org.jetbrains.exposed/exposed-java-time/0.44.0/23868c084bb686ac2a41e28e1628b3dccffdeb4e/exposed-java-time-0.44.0.jar!/" />
     </CLASSES>
     <JAVADOC />
-    <SOURCES />
+    <SOURCES>
+      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/org.jetbrains.exposed/exposed-java-time/0.44.0/251d83e147a79e40c3e32929570ccd57493ad4b1/exposed-java-time-0.44.0-sources.jar!/" />
+    </SOURCES>
   </library>
 </component>

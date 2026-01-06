@@ -5,6 +5,8 @@
       <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/io.github.cdimascio/dotenv-kotlin/6.4.1/71c222ad8e1b7e32305b2c9c996c4e631a54d9bd/dotenv-kotlin-6.4.1.jar!/" />
     </CLASSES>
     <JAVADOC />
-    <SOURCES />
+    <SOURCES>
+      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/io.github.cdimascio/dotenv-kotlin/6.4.1/dd42560cfdf16a4d59f12846c5d987067a3aa014/dotenv-kotlin-6.4.1-sources.jar!/" />
+    </SOURCES>
   </library>
 </component>
