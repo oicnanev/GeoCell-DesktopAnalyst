@@ -1,5 +1,6 @@
 package com.geocell.desktopanalyst.view
 
+import com.geocell.desktopanalyst.model.FilterParams
 import javafx.geometry.Insets
 import javafx.scene.control.Button
 import javafx.scene.control.Label
@@ -42,6 +43,9 @@ class NeighborsTab : BorderPane() {
     
     // Main view reference for accessing filters
     private var mainView: MainView? = null
+
+    // Store last query results for export
+    private var lastQueryResults: List<com.geocell.desktopanalyst.model.domain.Cell> = emptyList()
 
     init {
         setupLayout()
@@ -153,7 +157,10 @@ class NeighborsTab : BorderPane() {
                 startDate = filters.startDate,
                 endDate = filters.endDate
             )
-            
+
+            // Store results for export
+            lastQueryResults = neighbors
+
             // Format and display results
             resultsTextArea.text = formatResults(neighbors, cgi, radius, filters)
             
@@ -313,13 +320,5 @@ class NeighborsTab : BorderPane() {
     fun getRadiusTextField(): TextField = radiusTextField
     fun getQueryButton(): Button = queryButton
     fun getResultsTextArea(): TextArea = resultsTextArea
+    fun getLastQueryResults(): List<com.geocell.desktopanalyst.model.domain.Cell> = lastQueryResults
 }
-
-// Data class to hold filter parameters
-data class FilterParams(
-    val technologies: List<Int> = emptyList(),
-    val operators: List<String> = emptyList(),
-    val sameNetwork: Boolean = false,
-    val startDate: String? = null,
-    val endDate: String? = null
-)

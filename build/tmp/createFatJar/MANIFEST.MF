@@ -1,0 +1,4 @@
+Manifest-Version: 1.0
+Main-Class: com.geocell.desktopanalyst.KmzExporterApp
+Implementation-Version: 1.0.0
+

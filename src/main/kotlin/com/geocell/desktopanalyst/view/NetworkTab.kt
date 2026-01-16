@@ -1,5 +1,6 @@
 package com.geocell.desktopanalyst.view
 
+import com.geocell.desktopanalyst.model.FilterParams
 import javafx.geometry.Insets
 import javafx.scene.control.Button
 import javafx.scene.control.Label
@@ -64,6 +65,13 @@ class NetworkTab : BorderPane() {
         isEditable = false
         style = "-fx-font-family: 'Monospaced';"
     }
+
+    // Controller and MainView references
+    private var controller: com.geocell.desktopanalyst.controller.MainController? = null
+    private var mainView: MainView? = null
+
+    // Store last query results for export
+    private var lastQueryResults: List<com.geocell.desktopanalyst.model.domain.Cell> = emptyList()
 
     init {
         setupLayout()
@@ -153,12 +161,56 @@ class NetworkTab : BorderPane() {
             return
         }
 
-        // TODO: Implement actual database query by LAC/TAC
-        resultsTextArea.text = "Querying by LAC/TAC:\n" +
-                              "LAC/TAC: $lacTac\n\n" +
-                              "This feature is under development."
-        
-        println("Querying by LAC/TAC: $lacTac")
+        // Validate it's a number
+        val lacTacValue = try {
+            lacTac.toInt()
+        } catch (e: NumberFormatException) {
+            resultsTextArea.text = "Error: LAC/TAC must be a valid number"
+            return
+        }
+
+        if (lacTacValue <= 0) {
+            resultsTextArea.text = "Error: LAC/TAC must be greater than 0"
+            return
+        }
+
+        // Check if controller is available
+        if (controller == null) {
+            resultsTextArea.text = "Error: Controller not initialized. Please restart the application."
+            return
+        }
+
+        try {
+            // Show processing message
+            resultsTextArea.text = "Querying by LAC/TAC:\n" +
+                    "LAC/TAC: $lacTacValue\n" +
+                    "Processing..."
+
+            // Extract filters from main UI
+            val filters = extractFiltersFromMainView()
+
+            // Query the database through controller
+            val cells = controller!!.queryCellsByLacTac(
+                lacTac = lacTacValue,
+                filters = filters
+            )
+
+            // Store results for export
+            lastQueryResults = cells
+
+            // Format and display results
+            resultsTextArea.text = formatResults(cells, "LAC/TAC", lacTacValue.toString(), filters)
+
+            println("Querying by LAC/TAC: $lacTacValue")
+            println("Filters applied: $filters")
+            println("Found ${cells.size} cell(s)")
+
+        } catch (e: IllegalArgumentException) {
+            resultsTextArea.text = "Error: ${e.message}"
+        } catch (e: Exception) {
+            resultsTextArea.text = "Error querying database: ${e.message}"
+            e.printStackTrace()
+        }
     }
 
     fun queryByEnbGnb() {
@@ -171,7 +223,7 @@ class NetworkTab : BorderPane() {
 
         // Validate it's a number
         val enbGnbId = try {
-            enbGnb.toLong()
+            enbGnb.toInt()
         } catch (e: NumberFormatException) {
             resultsTextArea.text = "Error: eNB/gNB must be a valid number"
             return
@@ -182,12 +234,43 @@ class NetworkTab : BorderPane() {
             return
         }
 
-        // TODO: Implement actual database query by eNB/gNB
-        resultsTextArea.text = "Querying by eNB/gNB:\n" +
-                              "eNB/gNB ID: $enbGnbId\n\n" +
-                              "This feature is under development."
-        
-        println("Querying by eNB/gNB: $enbGnbId")
+        // Check if controller is available
+        if (controller == null) {
+            resultsTextArea.text = "Error: Controller not initialized. Please restart the application."
+            return
+        }
+
+        try {
+            // Show processing message
+            resultsTextArea.text = "Querying by eNB/gNB:\n" +
+                    "eNB/gNB ID: $enbGnbId\n" +
+                    "Processing..."
+
+            // Extract filters from main UI
+            val filters = extractFiltersFromMainView()
+
+            // Query the database through controller
+            val cells = controller!!.queryCellsByEnbGnb(
+                enbGnbId = enbGnbId,
+                filters = filters
+            )
+
+            // Store results for export
+            lastQueryResults = cells
+
+            // Format and display results
+            resultsTextArea.text = formatResults(cells, "eNB/gNB", enbGnbId.toString(), filters)
+
+            println("Querying by eNB/gNB: $enbGnbId")
+            println("Filters applied: $filters")
+            println("Found ${cells.size} cell(s)")
+
+        } catch (e: IllegalArgumentException) {
+            resultsTextArea.text = "Error: ${e.message}"
+        } catch (e: Exception) {
+            resultsTextArea.text = "Error querying database: ${e.message}"
+            e.printStackTrace()
+        }
     }
 
     fun queryByBand() {
@@ -198,12 +281,180 @@ class NetworkTab : BorderPane() {
             return
         }
 
-        // TODO: Implement actual database query by band
-        resultsTextArea.text = "Querying by Band:\n" +
-                              "Band: $band\n\n" +
-                              "This feature is under development."
-        
-        println("Querying by Band: $band")
+        // Check if controller is available
+        if (controller == null) {
+            resultsTextArea.text = "Error: Controller not initialized. Please restart the application."
+            return
+        }
+
+        try {
+            // Show processing message
+            resultsTextArea.text = "Querying by Band:\n" +
+                    "Band: $band\n" +
+                    "Processing..."
+
+            // Extract filters from main UI
+            val filters = extractFiltersFromMainView()
+
+            // Query the database through controller
+            val cells = controller!!.queryCellsByBand(
+                band = band,
+                filters = filters
+            )
+
+            // Store results for export
+            lastQueryResults = cells
+
+            // Format and display results
+            resultsTextArea.text = formatResults(cells, "Band", band, filters)
+
+            println("Querying by Band: $band")
+            println("Filters applied: $filters")
+            println("Found ${cells.size} cell(s)")
+
+        } catch (e: IllegalArgumentException) {
+            resultsTextArea.text = "Error: ${e.message}"
+        } catch (e: Exception) {
+            resultsTextArea.text = "Error querying database: ${e.message}"
+            e.printStackTrace()
+        }
+    }
+
+    private fun extractFiltersFromMainView(): FilterParams {
+        val mainView = this.mainView
+        if (mainView == null) {
+            println("WARNING: MainView not set, using empty filters")
+            return FilterParams()
+        }
+
+        // Extract technology filters
+        val technologyCheckboxes = mainView.getTechnologyCheckboxes()
+        val selectedTechnologies = technologyCheckboxes
+            .filter { it.isSelected }
+            .mapNotNull { checkbox ->
+                when (checkbox.text) {
+                    "2G" -> 2
+                    "3G" -> 3
+                    "4G" -> 4
+                    "5G" -> 5
+                    "NR-IoT" -> 10
+                    else -> null
+                }
+            }
+
+        // Extract operator filters
+        val operatorCheckboxes = mainView.getOperatorCheckboxes()
+        val selectedOperators = operatorCheckboxes
+            .filter { it.isSelected }
+            .map { it.text }
+
+        // Extract date filters
+        val datePickers = mainView.getDatePickers()
+        val fromDate = datePickers.getOrNull(0)?.value?.toString()
+        val toDate = datePickers.getOrNull(1)?.value?.toString()
+
+        println("Extracted filters:")
+        println("  Technologies: $selectedTechnologies")
+        println("  Operators: $selectedOperators")
+        println("  Date range: $fromDate to $toDate")
+
+        return FilterParams(
+            technologies = selectedTechnologies,
+            operators = selectedOperators,
+            startDate = fromDate,
+            endDate = toDate
+        )
+    }
+
+    private fun formatResults(
+        cells: List<com.geocell.desktopanalyst.model.domain.Cell>,
+        queryType: String,
+        queryValue: String,
+        filters: FilterParams
+    ): String {
+        val header = "Network Query Results\n" +
+                "Query Type: $queryType\n" +
+                "Query Value: $queryValue\n" +
+                formatFiltersInfo(filters) +
+                "Found ${cells.size} cell(s)\n" +
+                "=".repeat(60) + "\n"
+
+        if (cells.isEmpty()) {
+            return header + "No cells found matching the specified criteria and filters."
+        }
+
+        val results = cells.mapIndexed { index, cell ->
+            "${index + 1}. CGI: ${cell.cgi ?: "N/A"}\n" +
+                    "   Technology: ${getTechnologyName(cell.technology)}\n" +
+                    "   Operator: ${cell.mccMnc?.operator ?: "N/A"}\n" +
+                    "   Name: ${cell.name ?: "N/A"}\n" +
+                    "   LAC/TAC: ${cell.lacTac}\n" +
+                    "   eCI/nCI: ${cell.eciNci ?: "N/A"}\n" +
+                    "   Band: ${cell.band?.band ?: "N/A"}\n" +
+                    "   Location: ${formatLocation(cell.location)}\n"
+        }.joinToString("\n")
+
+        return header + results
+    }
+
+    private fun formatFiltersInfo(filters: FilterParams): String {
+        val info = StringBuilder()
+
+        if (filters.technologies.isNotEmpty()) {
+            val techNames = filters.technologies.map { getTechnologyName(it) }
+            info.append("Technologies: ${techNames.joinToString(", ")}\n")
+        }
+
+        if (filters.operators.isNotEmpty()) {
+            info.append("Operators: ${filters.operators.joinToString(", ")}\n")
+        }
+
+        if (filters.sameNetwork) {
+            info.append("Same network only: Yes\n")
+        }
+
+        if (filters.startDate != null || filters.endDate != null) {
+            info.append("Date range: ${filters.startDate ?: "Any"} to ${filters.endDate ?: "Any"}\n")
+        }
+
+        return info.toString()
+    }
+
+    private fun getTechnologyName(technologyCode: Int): String {
+        return when (technologyCode) {
+            2 -> "2G"
+            3 -> "3G"
+            4 -> "4G"
+            5 -> "5G"
+            10 -> "NR-IoT"
+            else -> "Unknown ($technologyCode)"
+        }
+    }
+
+    private fun formatLocation(location: com.geocell.desktopanalyst.model.domain.Location?): String {
+        if (location == null) return "No location data"
+
+        val coords = location.coordinates
+        val address = location.address
+        val postal = location.postalDesignation
+
+        return if (coords != null) {
+            val coordStr = "(${coords.y}, ${coords.x})"
+            val addressStr = if (address != null) "$address, " else ""
+            val postalStr = if (postal != null) postal else ""
+            "$addressStr$postalStr $coordStr"
+        } else {
+            "No coordinates"
+        }
+    }
+
+    // Public methods for integration with controller and main view
+    fun setController(controller: com.geocell.desktopanalyst.controller.MainController) {
+        this.controller = controller
+    }
+
+    fun setMainView(mainView: MainView) {
+        this.mainView = mainView
     }
 
     // Public methods for integration with controller
@@ -218,4 +469,5 @@ class NetworkTab : BorderPane() {
     fun getQueryEnbGnbButton(): Button = queryEnbGnbButton
     fun getQueryBandButton(): Button = queryBandButton
     fun getResultsTextArea(): TextArea = resultsTextArea
+    fun getLastQueryResults(): List<com.geocell.desktopanalyst.model.domain.Cell> = lastQueryResults
 }

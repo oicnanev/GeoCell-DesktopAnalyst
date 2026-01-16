@@ -6,6 +6,7 @@ import javafx.scene.layout.BorderPane
 import javafx.scene.text.Text
 import javafx.scene.text.TextFlow
 import javafx.scene.control.Hyperlink
+import javafx.scene.control.TextArea
 import javafx.scene.layout.HBox
 import javafx.scene.layout.Priority
 import javafx.scene.layout.VBox
@@ -18,14 +19,19 @@ class TimestampTab(): BorderPane() {
     private val titleText = Text("Turn .csv file with CGIs and Timestamps into Google Earth .kmz")
     private val exampleLink = Hyperlink("example.csv")
     private val textFlow = TextFlow().apply{
-        style = "-fx-background-color: darkgrey;"
+        style = "-fx-background-color: #f5f5f5; -fx-border-color: #cccccc; -fx-font-family: 'Monospaced';"
+        //style = "-fx-font-family: 'Monospaced';"
         prefHeight = 104.0
         prefWidth = 484.0
     }
+
     private val loadCsvButton = Button("Load CSV").apply {
         prefHeight = 26.0
         prefWidth = 105.0
     }
+
+    // Store the loaded CSV file
+    private var loadedCsvFile: java.io.File? = null
 
     init {
         setupLayout()
@@ -51,6 +57,7 @@ class TimestampTab(): BorderPane() {
         // Inferior panel with button
         val bottomPanel = HBox().apply {
             alignment = javafx.geometry.Pos.CENTER_RIGHT
+            padding = Insets(10.0, 0.0, 0.0, 0.0)
             children.add(loadCsvButton)
         }
 
@@ -87,7 +94,7 @@ class TimestampTab(): BorderPane() {
 
         // Example of of content to show on the TextFlow
         val sampleText = Text("""
-            CSV format example
+            CSV format example:
             timestamp,cgi,color,target,notes
             2025/04/26 00:02:34,268-06-8840-8453,red,John Smith,Initial deployment
             2025/04/26 00:03:34,268-03-8521869,green,Charlie Brown,High traffic area
@@ -111,15 +118,17 @@ class TimestampTab(): BorderPane() {
             println("Select file: ${selectedFile.name}")
 
             try {
-                // val records = csvProcessor.parseCsv(selectedFile)
-                // updateTextFlowWitCsvContent(records)
+                // Store the loaded file for later export
+                loadedCsvFile = selectedFile
 
                 // show content in textFlow
                 setCsvContent("${selectedFile.name} loaded\n" +
-                            "Localization: ${selectedFile.absolutePath}".trimIndent()
+                            "Localization: ${selectedFile.absolutePath}\n\n" +
+                            "Ready to export to KMZ. Click 'Export to KMZ' button.".trimIndent()
                 )
             } catch (e: Exception) {
                 setCsvContent("Error loading file: ${e.message}")
+                loadedCsvFile = null
             }
         } ?: run {
             println("None selected file")
@@ -134,4 +143,6 @@ class TimestampTab(): BorderPane() {
     fun getLoadCsvButton(): Button = loadCsvButton
 
     fun getExampleLink(): Hyperlink = exampleLink
+
+    fun getLoadedCsvFile(): java.io.File? = loadedCsvFile
 }

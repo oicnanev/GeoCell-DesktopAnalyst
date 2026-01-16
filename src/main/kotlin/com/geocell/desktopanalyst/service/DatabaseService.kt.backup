@@ -1,0 +1,512 @@
+package com.geocell.desktopanalyst.service
+
+import com.geocell.desktopanalyst.extensions.toCell
+import com.geocell.desktopanalyst.extensions.toCellPolygon
+import com.geocell.desktopanalyst.model.domain.Band
+import com.geocell.desktopanalyst.model.table.BandTable
+import com.geocell.desktopanalyst.model.domain.Cell
+import com.geocell.desktopanalyst.model.domain.CellPolygon
+import com.geocell.desktopanalyst.model.domain.Location
+import com.geocell.desktopanalyst.model.domain.MCCMNC
+import com.geocell.desktopanalyst.model.table.CellPolygonTable
+import com.geocell.desktopanalyst.model.table.CellTable
+import com.geocell.desktopanalyst.model.table.CountyTable
+import com.geocell.desktopanalyst.model.table.LocationTable
+import com.geocell.desktopanalyst.model.table.MccMncTable
+import org.jetbrains.exposed.sql.Database
+import org.jetbrains.exposed.sql.StdOutSqlLogger
+import org.jetbrains.exposed.sql.addLogger
+import org.jetbrains.exposed.sql.select
+import org.jetbrains.exposed.sql.transactions.transaction
+import io.github.cdimascio.dotenv.dotenv
+import org.jetbrains.exposed.sql.or
+import org.locationtech.jts.geom.Point
+import java.sql.Date
+import java.sql.ResultSet
+import java.time.LocalDate
+
+class DatabaseService {
+    init {
+        val dotenv = dotenv()
+        val url = "jdbc:postgresql://${dotenv["DB_HOST"]}:${dotenv["DB_PORT"]}/${dotenv["DB_NAME"]}"
+        val user = dotenv["DB_USER"]
+        val password = dotenv["DB_PASSWORD"]
+
+        Database.connect(url, driver = "org.postgresql.Driver", user = user, password = password)
+        transaction {
+            exec("CREATE EXTENSION IF NOT EXISTS postgis")
+        }
+    }
+
+    fun getCellByCgi(cgi: String): Cell? = transaction {
+        println("🔍 getCellByCgi buscando: $cgi")
+
+        // Primeiro, tentar buscar direto com SQL para debug
+        val debugQuery = """
+        SELECT 
+            c.id, c.cgi, c.paragon_cgi, c.location_id,
+            l.coordinates
+        FROM geocell_cell c
+        LEFT JOIN geocell_location l ON c.location_id = l.id
+        WHERE c.cgi = '$cgi' OR c.paragon_cgi = '$cgi'
+        LIMIT 1
+    """.trimIndent()
+
+        val debugResult = exec(debugQuery) { rs ->
+            if (rs.next()) {
+                val id = rs.getLong("id")
+                val foundCgi = rs.getString("cgi")
+                val locationId = rs.getLong("location_id")
+                val coordinates = rs.getString("coordinates")
+                println("   ✅ Debug encontrou: ID=$id, CGI=$foundCgi, LocationID=$locationId")
+                println("   📍 Coordinates: ${coordinates?.take(50)}...")
+                true
+            } else {
+                println("   ❌ Debug NÃO encontrou o CGI")
+                false
+            }
+        }
+
+        debugResult?.let {
+            if (!it as Boolean) {
+                return@transaction null
+            }
+        }
+
+        // Agora usar o método Exposed
+        try {
+            val result = (CellTable leftJoin LocationTable leftJoin CountyTable
+                    leftJoin MccMncTable leftJoin BandTable)
+                .select {
+                    (CellTable.cgi eq cgi) or (CellTable.paragonCgi eq cgi)
+                }
+                .singleOrNull()
+                ?.toCell()
+
+            println("   ✅ getCellByCgi final retornou: ${if (result != null) "Cell object" else "null"}")
+            return@transaction result
+        } catch (e: Exception) {
+            println("   ❌ Erro no getCellByCgi: ${e.message}")
+            e.printStackTrace()
+            return@transaction null
+        }
+    }
+
+    fun getCellPolygons(cellId: Long): List<CellPolygon> = transaction {
+        CellPolygonTable
+            .select { CellPolygonTable.cellId eq cellId }
+            .map { it.toCellPolygon() }
+    }
+
+    fun getCellsByCgiList(cgis: List<String>): Map<String, Cell> = transaction {
+        addLogger(StdOutSqlLogger)
+        (CellTable leftJoin LocationTable leftJoin CountyTable
+                leftJoin MccMncTable leftJoin BandTable)
+            .select { CellTable.cgi inList cgis }
+            .associate { row ->
+                row[CellTable.cgi] to row.toCell()
+            }.toNotNullKeyMap()
+    }
+
+    fun getCellByCgiFallback(cgi: String): Cell? = transaction {
+        println("🔄 Usando fallback para buscar CGI: $cgi")
+
+        val sql = """
+        SELECT 
+            c.id,
+            c.lac_tac,
+            c.ci,
+            c.eci_nci,
+            c.cgi,
+            c.paragon_cgi,
+            c.technology,
+            c.direction,
+            c.name,
+            c.created,
+            c.modified,
+            c.enb_gnb_id,
+            c.band_id,
+            c.location_id,
+            c.mcc_mnc_id,
+            
+            -- Location info
+            l.address,
+            l.address1,
+            l.zip4,
+            l.zip3,
+            l.postal_designation,
+            ST_X(l.coordinates::geometry) as longitude,
+            ST_Y(l.coordinates::geometry) as latitude,
+            
+            -- Band info
+            b.band,
+            b.bandwidth,
+            b.uplink_freq,
+            b.downlink_freq,
+            b.earfcn,
+            
+            -- MCC MNC info
+            m.mcc,
+            m.mnc,
+            m.operator_name,
+            m.brand,
+            m.status,
+            m.bands as operator_bands,
+            m.notes as operator_notes
+            
+        FROM geocell_cell c
+        LEFT JOIN geocell_location l ON c.location_id = l.id
+        LEFT JOIN geocell_band b ON c.band_id = b.id
+        LEFT JOIN geocell_mccmnc m ON c.mcc_mnc_id = m.id
+        
+        WHERE c.cgi = '$cgi' OR c.paragon_cgi = '$cgi'
+        LIMIT 1
+    """.trimIndent()
+
+        println("📋 Fallback query:")
+        println(sql)
+
+        return@transaction exec(sql) { rs ->
+            (if (rs.next()) {
+                try {
+                    mapResultSetToCell(rs)
+                } catch (e: Exception) {
+                    println("❌ Erro ao mapear célula no fallback: ${e.message}")
+                    null
+                }
+            } else {
+                null
+            }) as Any
+        } as Cell?
+    }
+
+    fun getNeighborCells(
+        cgi: String,
+        radiusKm: Double,
+        technologies: List<Int> = emptyList(),
+        sameNetwork: Boolean = false,
+        historic: Boolean = false,
+        startDate: String? = null,
+        endDate: String? = null
+    ): List<Cell> = transaction {
+        addLogger(StdOutSqlLogger)
+
+        println("🚀 Iniciando busca de vizinhos para CGI: $cgi")
+        println("   Raio: $radiusKm km")
+        println("   Tecnologias: $technologies")
+        println("   Mesma rede: $sameNetwork")
+
+        // 1. Primeiro, buscar a célula de referência e suas coordenadas
+        println("🔍 Buscando célula de referência...")
+        val referenceCell = getCellByCgi(cgi)
+
+        if (referenceCell == null) {
+            println("❌ Célula de referência não encontrada: $cgi")
+            return@transaction emptyList()
+        }
+
+        val location = referenceCell.location
+        if (location == null) {
+            println("❌ Célula de referência não tem localização: $cgi")
+            return@transaction emptyList()
+        }
+
+        val coordinates = location.coordinates
+        if (coordinates == null) {
+            println("❌ Célula de referência não tem coordenadas: $cgi")
+            return@transaction emptyList()
+        }
+
+        val refLongitude = coordinates.x
+        val refLatitude = coordinates.y
+        val radiusMeters = radiusKm * 1000.0
+
+        println("📍 Coordenadas da célula de referência:")
+        println("   Latitude: $refLatitude")
+        println("   Longitude: $refLongitude")
+
+        // 2. Construir query de busca por raio (usando a lógica que funcionou no teste)
+        val sql = buildString {
+            append("""
+                SELECT 
+                    c.id,
+                    c.lac_tac,
+                    c.ci,
+                    c.eci_nci,
+                    c.cgi,
+                    c.paragon_cgi,
+                    c.technology,
+                    c.direction,
+                    c.name,
+                    c.created,
+                    c.modified,
+                    c.enb_gnb_id,
+                    c.color,
+                    c.target,
+                    c.notes,
+                    c.band_id,
+                    c.location_id,
+                    c.mcc_mnc_id,
+                    
+                    -- Band info
+                    b.band,
+                    b.bandwidth,
+                    b.uplink_freq,
+                    b.downlink_freq,
+                    b.earfcn,
+                    
+                    -- Location info
+                    l.address,
+                    l.address1,
+                    l.zip4,
+                    l.zip3,
+                    l.postal_designation,
+                    
+                    -- Extrair coordenadas da geometria
+                    ST_X(l.coordinates::geometry) as longitude,
+                    ST_Y(l.coordinates::geometry) as latitude,
+                    
+                    -- MCC MNC info
+                    m.mcc,
+                    m.mnc,
+                    m.operator_name,
+                    m.brand,
+                    m.status,
+                    m.bands as operator_bands,
+                    m.notes as operator_notes,
+                    
+                    -- Calcular distância em metros
+                    ST_Distance(
+                        l.coordinates::geography,
+                        ST_SetSRID(ST_MakePoint($refLongitude, $refLatitude), 4326)::geography
+                    ) as distance_meters
+                    
+                FROM geocell_cell c
+                INNER JOIN geocell_location l ON c.location_id = l.id
+                LEFT JOIN geocell_band b ON c.band_id = b.id
+                LEFT JOIN geocell_mccmnc m ON c.mcc_mnc_id = m.id
+                
+                WHERE l.coordinates IS NOT NULL
+                AND ST_DWithin(
+                    l.coordinates::geography,
+                    ST_SetSRID(ST_MakePoint($refLongitude, $refLatitude), 4326)::geography,
+                    $radiusMeters,
+                    true  -- use_spheroid
+                )
+                AND c.cgi != '$cgi'
+                AND c.paragon_cgi != '$cgi'
+            """.trimIndent())
+
+            // Aplicar filtros
+            val conditions = mutableListOf<String>()
+
+            // Filtro de tecnologia
+            if (technologies.isNotEmpty()) {
+                val techList = technologies.joinToString(", ")
+                conditions.add("c.technology IN ($techList)")
+            }
+
+            // Filtro de mesma rede
+            if (sameNetwork) {
+                // Extrair MCC-MNC do CGI (formato: MCC-MNC-...)
+                val cgiParts = cgi.split("-")
+                if (cgiParts.size >= 2) {
+                    val mcc = cgiParts[0]
+                    val mnc = cgiParts[1]
+                    conditions.add("m.mcc = $mcc AND m.mnc = $mnc")
+                    println("   Aplicando filtro de mesma rede: MCC=$mcc, MNC=$mnc")
+                }
+            }
+
+            // Filtro de data histórica
+            if (historic && startDate != null && endDate != null) {
+                conditions.add("c.created BETWEEN '$startDate' AND '$endDate'")
+                println("   Aplicando filtro de data: $startDate até $endDate")
+            }
+
+            // Adicionar condições se houver
+            if (conditions.isNotEmpty()) {
+                append("\nAND ${conditions.joinToString(" AND ")}")
+            }
+
+            // Ordenar por distância
+            append("\nORDER BY distance_meters")
+        }
+
+        println("📋 Query SQL gerada:")
+        println(sql)
+
+        // 3. Executar query
+        println("⚡ Executando query...")
+
+        val startTime = System.currentTimeMillis()
+
+        val result = try {
+            exec(sql) { rs ->
+                val cells = mutableListOf<Cell>()
+                var count = 0
+
+                while (rs.next()) {
+                    try {
+                        val cell = mapResultSetToCell(rs)
+                        cells.add(cell)
+                        count++
+
+                        // Log progresso a cada 100 células
+                        if (count % 100 == 0) {
+                            println("   ✅ Processadas $count células...")
+                        }
+                    } catch (e: Exception) {
+                        println("⚠️ Erro ao mapear célula: ${e.message}")
+                        e.printStackTrace()
+                    }
+                }
+
+                println("✅ Total de células encontradas: $count")
+                cells
+            }
+        } catch (e: Exception) {
+            println("❌ Erro ao executar query:")
+            println("   ${e.message}")
+            e.printStackTrace()
+            emptyList<Cell>()
+        }
+
+        val endTime = System.currentTimeMillis()
+        val duration = endTime - startTime
+
+        println("⏱️  Tempo de execução: ${duration}ms")
+
+        return@transaction result as List<Cell>
+    }
+
+    private fun mapResultSetToCell(rs: ResultSet): Cell {
+        // Funções auxiliares para leitura segura
+        fun getString(column: String): String? =
+            try {
+                rs.getString(column)
+            } catch (e: Exception) {
+                null
+            }
+
+        fun getInt(column: String): Int? =
+            try {
+                val value = rs.getObject(column)
+                when (value) {
+                    is Number -> value.toInt()
+                    is String -> value.toIntOrNull()
+                    else -> null
+                }
+            } catch (e: Exception) {
+                null
+            }
+
+        fun getLong(column: String): Long? =
+            try {
+                val value = rs.getObject(column)
+                when (value) {
+                    is Number -> value.toLong()
+                    is String -> value.toLongOrNull()
+                    else -> null
+                }
+            } catch (e: Exception) {
+                null
+            }
+
+        fun getDouble(column: String): Double? =
+            try {
+                val value = rs.getObject(column)
+                when (value) {
+                    is Number -> value.toDouble()
+                    is String -> value.toDoubleOrNull()
+                    else -> null
+                }
+            } catch (e: Exception) {
+                null
+            }
+
+        fun getDate(column: String): LocalDate? =
+            try {
+                rs.getDate(column)?.toLocalDate()
+            } catch (e: Exception) {
+                null
+            }
+
+        // Extrair coordenadas
+        val longitude = getDouble("longitude")
+        val latitude = getDouble("latitude")
+
+        val point: Point? = if (longitude != null && latitude != null) {
+            Point(longitude, latitude)
+        } else {
+            null
+        }
+
+        // Criar objeto Location
+        val location = Location(
+            id = getLong("location_id") ?: 0,
+            coordinates = point,
+            address = getString("address"),
+            address1 = getString("address1"),
+            zip4 = getInt("zip4"),
+            zip3 = getInt("zip3"),
+            postalDesignation = getString("postal_designation"),
+            idCounty = null
+        )
+
+        // Criar objeto Band
+        val band = Band(
+            band = getString("band"),
+            bandwidth = getDouble("bandwidth"),
+            uplinkFreq = getDouble("uplink_freq"),
+            downlinkFreq = getDouble("downlink_freq"),
+            earfcn = getDouble("earfcn")
+        )
+
+        // Criar objeto MCCMNC
+        val mccMnc = MCCMNC(
+            type = null,
+            mcc = getInt("mcc"),
+            mnc = getInt("mnc"),
+            operator = getString("operator_name"),
+            country = null,
+            brand = getString("brand"),
+            status = getString("status"),
+            bands = getString("operator_bands"),
+            notes = getString("operator_notes")
+        )
+
+        // Calcular distância em km
+        val distanceMeters = getDouble("distance_meters")
+        val distanceKm = if (distanceMeters != null) distanceMeters / 1000.0 else null
+
+        // Criar e retornar Cell
+        return Cell(
+            id = getLong("id") ?: throw IllegalArgumentException("Cell ID não pode ser nulo"),
+            lacTac = getString("lac_tac") ?: "",
+            ci = getString("ci"),
+            eciNci = getString("eci_nci"),
+            cgi = getString("cgi"),
+            paragonCgi = getString("paragon_cgi"),
+            technology = getInt("technology") ?: 0,
+            direction = getInt("direction") ?: 0,
+            name = getString("name"),
+            created = getDate("created") ?: LocalDate.now(),
+            modified = getDate("modified") ?: LocalDate.now(),
+            band = band,
+            enbGnbId = getLong("enb_gnb_id"),
+            location = location,
+            mccMnc = mccMnc,
+            color = getString("color"),
+            target = getString("target"),
+            notes = getString("notes"),
+            distanceFromReference = distanceKm
+        )
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    fun <K, V> Map<K?, V>.toNotNullKeyMap(): Map<K, V> = this as Map<K, V>
+}
+
+// Extensão para converter java.sql.Date para LocalDate
+private fun Date.toLocalDate(): LocalDate = this.toLocalDate()

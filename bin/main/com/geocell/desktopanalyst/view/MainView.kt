@@ -1,0 +1,146 @@
+package com.geocell.desktopanalyst.view
+
+import javafx.geometry.Insets
+import javafx.scene.control.Button
+import javafx.scene.control.CheckBox
+import javafx.scene.control.DatePicker
+import javafx.scene.control.Label
+import javafx.scene.control.Menu
+import javafx.scene.control.MenuBar
+import javafx.scene.control.MenuItem
+import javafx.scene.control.SeparatorMenuItem
+import javafx.scene.control.Tab
+import javafx.scene.control.TabPane
+import javafx.scene.layout.Priority
+import javafx.scene.layout.VBox
+
+class MainView(): VBox() {
+    // Main components
+    private val menuBar = createMenuBar()
+    private val tabPane = TabPane().apply {
+        tabClosingPolicy = TabPane.TabClosingPolicy.UNAVAILABLE
+    }
+    private val filterSection = FilterSection()
+
+    init {
+        setupLayout()
+        setupTabs()
+        setupStyles()
+    }
+
+    private fun setupLayout() {
+        spacing = 10.0
+        padding = Insets(10.0)
+
+        children.addAll(menuBar, tabPane, filterSection) // CORRIGIDO: adicionar filterSection
+        VBox.setVgrow(tabPane, Priority.ALWAYS)
+    }
+
+    private fun setupTabs() {
+        val timestampTab = Tab("Timestamp").apply {
+            content = TimestampTab()
+        }
+
+        val neighborsTab = Tab("Neighbors").apply {
+            content = NeighborsTab()
+        }
+
+        val geographicTab = Tab("Geographic").apply {
+            content = GeographicTab()
+        }
+
+        val administrativeTab = Tab("Administrative").apply {
+            content = AdministrativeTab()
+        }
+
+        val networkTab = Tab("Network").apply {
+            content = NetworkTab()
+        }
+
+        tabPane.tabs.addAll(
+            timestampTab,
+            neighborsTab,
+            geographicTab,
+            administrativeTab,
+            networkTab
+        )
+    }
+
+    private fun createMenuBar(): MenuBar =
+        MenuBar().apply {
+            menus.addAll(
+                Menu("File").apply {
+                    items.addAll(
+                        MenuItem("New"),
+                        MenuItem("Open…"),
+                        Menu("Open Recent"),
+                        SeparatorMenuItem(),
+                        MenuItem("Close"),
+                        MenuItem("Save"),
+                        MenuItem("Save As…"),
+                        MenuItem("Revert"),
+                        SeparatorMenuItem(),
+                        MenuItem("Preferences…"),
+                        SeparatorMenuItem(),
+                        MenuItem("Quit")
+                    )
+                },
+                Menu("Edit").apply {
+                    items.addAll(
+                        MenuItem("Undo"),
+                        MenuItem("Redo"),
+                        SeparatorMenuItem(),
+                        MenuItem("Cut"),
+                        MenuItem("Copy"),
+                        MenuItem("Paste"),
+                        MenuItem("Delete"),
+                        SeparatorMenuItem(),
+                        MenuItem("Select All"),
+                        MenuItem("Unselect All")
+                    )
+                },
+                Menu("Help").apply {
+                    items.addAll(
+                        MenuItem("About")
+                    )
+                }
+            )
+        }
+
+    private fun setupStyles() {
+        // To add styles
+    }
+
+    // Public Methods to integrate with the Controller
+    fun getTimestampTab(): TimestampTab {
+        return tabPane.tabs[0].content as TimestampTab
+    }
+
+    fun getNeighborsTab(): NeighborsTab {
+        return tabPane.tabs[1].content as NeighborsTab
+    }
+
+    fun getGeographicTab(): GeographicTab {
+        return tabPane.tabs[2].content as GeographicTab
+    }
+
+    fun getAdministrativeTab(): AdministrativeTab {
+        return tabPane.tabs[3].content as AdministrativeTab
+    }
+
+    fun getNetworkTab(): NetworkTab {
+        return tabPane.tabs[4].content as NetworkTab
+    }
+
+    fun getTabPane(): TabPane = tabPane
+
+    fun getTechnologyCheckboxes(): List<CheckBox> = filterSection.getTechnologyCheckboxes()
+
+    fun getOperatorCheckboxes(): List<CheckBox> = filterSection.getOperatorCheckboxes()
+
+    fun getDatePickers(): List<DatePicker> = filterSection.getDatePickers()
+
+    fun getQueryButton(): Button = filterSection.getQueryButton()
+
+    fun getExportButton(): Button = filterSection.getExportButton()
+}

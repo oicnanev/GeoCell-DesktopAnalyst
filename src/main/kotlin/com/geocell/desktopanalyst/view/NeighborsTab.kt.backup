@@ -1,0 +1,219 @@
+// NeighborsTab.kt - versão simplificada SEM filtros duplicados
+package com.geocell.desktopanalyst.view
+
+import com.geocell.desktopanalyst.controller.MainController
+import javafx.geometry.Insets
+import javafx.scene.control.*
+import javafx.scene.layout.BorderPane
+import javafx.scene.layout.HBox
+import javafx.scene.layout.Priority
+import javafx.scene.layout.VBox
+import javafx.scene.text.Text
+
+class NeighborsTab : BorderPane() {
+    private var controller: MainController? = null
+
+    // UI Components
+    private val titleText = Text("Neighbor cells of a CGI given a radius in kilometres")
+    private val cgiTextField = TextField().apply {
+        promptText = "CGI"
+        prefWidth = 150.0
+    }
+    private val radiusTextField = TextField().apply {
+        promptText = "radius (kms)"
+        prefWidth = 150.0
+        text = "1.0"
+    }
+
+    // **REMOVIDO: checkboxes de tecnologia e sameNetwork**
+
+    private val queryButton = Button("Query Neighbors").apply {
+        prefHeight = 26.0
+        prefWidth = 120.0
+    }
+    private val resultsTextArea = TextArea().apply {
+        prefHeight = 128.0
+        prefWidth = 431.0
+        isEditable = false
+        style = "-fx-font-family: 'Monospaced';"
+    }
+
+    init {
+        setupLayout()
+        setupStyles()
+        setupEventHandlers()
+    }
+
+    private fun setupLayout() {
+        padding = Insets(10.0)
+
+        // Top panel with title
+        val topPanel = VBox(10.0).apply {
+            children.add(titleText)
+        }
+
+        // Center panel with input fields and results
+        val centerPanel = HBox(20.0).apply {
+            // Left side - apenas CGI e raio
+            val inputPanel = VBox(15.0).apply {
+                children.addAll(
+                    Label("CGI:"),
+                    cgiTextField,
+                    Label("Radius (km):"),
+                    radiusTextField,
+                    queryButton
+                )
+                padding = Insets(10.0)
+            }
+
+            // Right side - results area
+            val resultsPanel = VBox(5.0).apply {
+                children.addAll(
+                    Label("Results:"),
+                    resultsTextArea
+                )
+                VBox.setVgrow(resultsTextArea, Priority.ALWAYS)
+            }
+
+            children.addAll(inputPanel, resultsPanel)
+            HBox.setHgrow(resultsPanel, Priority.ALWAYS)
+        }
+
+        top = topPanel
+        center = centerPanel
+    }
+
+    private fun setupStyles() {
+        titleText.wrappingWidth = 397.0
+        resultsTextArea.style = "-fx-background-color: #f5f5f5; -fx-border-color: #cccccc;"
+    }
+
+    private fun setupEventHandlers() {
+        queryButton.setOnAction {
+            queryNeighbors()
+        }
+
+        cgiTextField.setOnAction { queryNeighbors() }
+        radiusTextField.setOnAction { queryNeighbors() }
+    }
+
+    fun queryNeighbors() {
+        val cgi = cgiTextField.text.trim()
+        val radiusText = radiusTextField.text.trim()
+
+        if (cgi.isEmpty()) {
+            resultsTextArea.text = "Error: Please enter a CGI"
+            return
+        }
+
+        if (radiusText.isEmpty()) {
+            resultsTextArea.text = "Error: Please enter a radius"
+            return
+        }
+
+        val radius = try {
+            radiusText.toDouble()
+        } catch (e: NumberFormatException) {
+            resultsTextArea.text = "Error: Radius must be a valid number"
+            return
+        }
+
+        if (radius <= 0) {
+            resultsTextArea.text = "Error: Radius must be greater than 0"
+            return
+        }
+
+        if (controller == null) {
+            resultsTextArea.text = "Error: Controller not initialized"
+            return
+        }
+
+        try {
+            resultsTextArea.text = "Querying neighbors for CGI: $cgi\nRadius: $radius km\nProcessing..."
+
+            // **SIMPLIFICADO: Usar filtros que serão passados do KmzExporterApp**
+            val neighbors = controller!!.queryNeighbors(
+                cgi = cgi,
+                radiusKm = radius
+                // Filtros serão aplicados pelo controller baseado nos filtros do main
+            )
+
+            resultsTextArea.text = formatResults(neighbors, cgi, radius)
+
+            println("Query completed. Found ${neighbors.size} neighbor cells")
+
+        } catch (e: IllegalArgumentException) {
+            resultsTextArea.text = "Error: ${e.message}"
+        } catch (e: Exception) {
+            resultsTextArea.text = "Error querying database: ${e.message}"
+            e.printStackTrace()
+        }
+    }
+
+    private fun formatResults(
+        neighbors: List<com.geocell.desktopanalyst.model.domain.Cell>,
+        referenceCgi: String,
+        radius: Double
+    ): String {
+        val header = "Neighbor cells for CGI: $referenceCgi\n" +
+                "Search radius: $radius km\n" +
+                "Found ${neighbors.size} neighbor(s)\n" +
+                "=".repeat(60) + "\n"
+
+        if (neighbors.isEmpty()) {
+            return header + "No neighbors found within the specified radius."
+        }
+
+        val results = neighbors.mapIndexed { index, cell ->
+            val techName = getTechnologyName(cell.technology)
+            val operator = cell.mccMnc?.operator ?: "Unknown"
+            val location = formatLocation(cell.location)
+            val distance = if (cell.distanceFromReference != null) {
+                "${"%.2f".format(cell.distanceFromReference)} km"
+            } else {
+                "N/A"
+            }
+
+            "${index + 1}. ${cell.cgi ?: "N/A"}\n" +
+                    "   Technology: $techName\n" +
+                    "   Name: ${cell.name ?: "N/A"}\n" +
+                    "   Operator: $operator\n" +
+                    "   Distance: $distance\n" +
+                    "   Location: $location\n"
+        }.joinToString("\n")
+
+        return header + results
+    }
+
+    private fun getTechnologyName(technologyCode: Int): String {
+        return when (technologyCode) {
+            2 -> "2G"
+            3 -> "3G"
+            4 -> "4G"
+            5 -> "5G"
+            10 -> "NR-IoT"
+            else -> "Unknown ($technologyCode)"
+        }
+    }
+
+    private fun formatLocation(location: com.geocell.desktopanalyst.model.domain.Location?): String {
+        if (location == null) return "No location data"
+
+        val coords = location.coordinates
+        return if (coords != null) {
+            "${"%.6f".format(coords.y)}, ${"%.6f".format(coords.x)}"
+        } else {
+            "No coordinates"
+        }
+    }
+
+    // Métodos getter
+    fun getCgiTextField(): TextField = cgiTextField
+    fun getRadiusTextField(): TextField = radiusTextField
+    fun getQueryButton(): Button = queryButton
+    fun getResultsTextArea(): TextArea = resultsTextArea
+
+    fun setController(controller: MainController) {
+        this.controller = controller
+    }
+}

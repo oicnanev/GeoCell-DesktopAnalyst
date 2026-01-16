@@ -1,0 +1,39 @@
+#!/bin/bash
+# Script de execução para Linux
+
+echo "=== KMZ Exporter ==="
+echo "Versão: {{VERSION}}"
+echo ""
+
+# Verificar Java
+if ! command -v java &> /dev/null; then
+    echo "❌ Java não encontrado!"
+    echo "Por favor, instale Java 17 ou superior."
+    echo "Visite: https://adoptium.net/"
+    exit 1
+fi
+
+JAVA_VERSION=$(java -version 2>&1 | head -n 1 | cut -d'"' -f2)
+echo "✓ Java encontrado: versão $JAVA_VERSION"
+
+# Verificar versão do Java
+MAJOR_VERSION=$(echo $JAVA_VERSION | cut -d'.' -f1)
+if [ "$MAJOR_VERSION" -lt 17 ]; then
+    echo "❌ Java muito antigo! Necessário Java 17+."
+    echo "Versão atual: $JAVA_VERSION"
+    exit 1
+fi
+
+echo "✓ Java 17+ detectado"
+echo "Iniciando aplicação..."
+echo ""
+
+# Executar aplicação
+java \
+  --module-path=javafx/lib \
+  --add-modules=javafx.controls,javafx.fxml,javafx.graphics,javafx.base \
+  --add-opens=javafx.controls/javafx.scene.control=ALL-UNNAMED \
+  --add-opens=javafx.graphics/javafx.scene=ALL-UNNAMED \
+  --add-opens=java.base/java.lang=ALL-UNNAMED \
+  -Xmx2048m \
+  -jar KMZ-Exporter.jar

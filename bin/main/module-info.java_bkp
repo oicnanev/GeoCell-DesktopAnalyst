@@ -1,0 +1,16 @@
+module com.geocell.desktopanalyst {
+    requires javafx.controls;
+    requires javafx.fxml;
+    requires javafx.graphics;
+    requires javafx.base;
+    
+    requires kotlin.stdlib;
+    
+    requires java.sql;
+    requires java.desktop;
+    requires java.logging;
+    requires java.naming;
+    requires jdk.unsupported;
+    
+    exports com.geocell.desktopanalyst;
+}

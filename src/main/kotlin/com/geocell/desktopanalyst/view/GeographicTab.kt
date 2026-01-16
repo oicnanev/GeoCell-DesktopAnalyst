@@ -11,23 +11,16 @@ import javafx.scene.layout.HBox
 import javafx.scene.layout.Priority
 import javafx.scene.layout.VBox
 import javafx.scene.text.Text
+import com.geocell.desktopanalyst.model.FilterParams
 
 /**
  * Tab for querying cells within a geographical area (circle or rectangle).
- *
- * This tab allows users to:
- * - Search cells within a circular area (center point + radius)
- * - Search cells within a rectangular area (two corner points)
- * - Display results in a text area
- *
- * @see MainController
- * @since 1.0.0
  */
 class GeographicTab : BorderPane() {
 
     // UI Components
     private val titleText = Text("Cells in a geographical circle or rectangle")
-    
+
     // Circle section
     private val circleLabel = Text("Circle:")
     private val circleLatTextField = TextField().apply {
@@ -42,7 +35,7 @@ class GeographicTab : BorderPane() {
         promptText = "radius (kms)"
         prefWidth = 116.0
     }
-    
+
     // Rectangle section
     private val rectangleLabel = Text("Rectangle:")
     private val rectLat1TextField = TextField().apply {
@@ -61,7 +54,7 @@ class GeographicTab : BorderPane() {
         promptText = "Longitude 2"
         prefWidth = 114.0
     }
-    
+
     // Buttons
     private val queryCircleButton = Button("Query Circle").apply {
         prefHeight = 26.0
@@ -71,7 +64,7 @@ class GeographicTab : BorderPane() {
         prefHeight = 26.0
         prefWidth = 120.0
     }
-    
+
     // Results
     private val resultsTextArea = TextArea().apply {
         prefHeight = 164.0
@@ -79,6 +72,15 @@ class GeographicTab : BorderPane() {
         isEditable = false
         style = "-fx-font-family: 'Monospaced';"
     }
+
+    // Controller reference
+    private var controller: com.geocell.desktopanalyst.controller.MainController? = null
+
+    // Main view reference for accessing filters
+    private var mainView: MainView? = null
+
+    // Store last query results for export
+    private var lastQueryResults: List<com.geocell.desktopanalyst.model.domain.Cell> = emptyList()
 
     init {
         setupLayout()
@@ -115,7 +117,7 @@ class GeographicTab : BorderPane() {
                         }
                     )
                 }
-                
+
                 // Rectangle section
                 val rectangleSection = VBox(5.0).apply {
                     children.addAll(
@@ -135,7 +137,7 @@ class GeographicTab : BorderPane() {
                         }
                     )
                 }
-                
+
                 children.addAll(circleSection, rectangleSection)
                 padding = Insets(10.0)
             }
@@ -167,7 +169,7 @@ class GeographicTab : BorderPane() {
         queryCircleButton.setOnAction {
             queryCircle()
         }
-        
+
         queryRectangleButton.setOnAction {
             queryRectangle()
         }
@@ -189,14 +191,14 @@ class GeographicTab : BorderPane() {
             resultsTextArea.text = "Error: Latitude must be a valid number"
             return
         }
-        
+
         val lon = try {
             lonText.toDouble()
         } catch (e: NumberFormatException) {
             resultsTextArea.text = "Error: Longitude must be a valid number"
             return
         }
-        
+
         val radius = try {
             radiusText.toDouble()
         } catch (e: NumberFormatException) {
@@ -214,19 +216,52 @@ class GeographicTab : BorderPane() {
             resultsTextArea.text = "Error: Latitude must be between -90 and 90"
             return
         }
-        
+
         if (lon < -180 || lon > 180) {
             resultsTextArea.text = "Error: Longitude must be between -180 and 180"
             return
         }
 
-        // TODO: Implement actual database query for circle area
-        resultsTextArea.text = "Querying circle area:\n" +
-                              "Center: ($lat, $lon)\n" +
-                              "Radius: $radius km\n\n" +
-                              "This feature is under development."
-        
-        println("Querying circle - Center: ($lat, $lon), Radius: $radius km")
+        // Check if controller is available
+        if (controller == null) {
+            resultsTextArea.text = "Error: Controller not initialized. Please restart the application."
+            return
+        }
+
+        try {
+            // Show processing message
+            resultsTextArea.text = "Querying circle area:\n" +
+                    "Center: ($lat, $lon)\n" +
+                    "Radius: $radius km\n" +
+                    "Processing..."
+
+            // Extract filters from main UI
+            val filters = extractFiltersFromMainView()
+
+            // Query the database through controller
+            val cells = controller!!.queryCellsInCircle(
+                centerLat = lat,
+                centerLon = lon,
+                radiusKm = radius,
+                filters = filters
+            )
+
+            // Store results for export
+            lastQueryResults = cells
+
+            // Format and display results
+            resultsTextArea.text = formatResults(cells, "Circle", "Center: ($lat, $lon), Radius: $radius km", filters)
+
+            println("Querying circle - Center: ($lat, $lon), Radius: $radius km")
+            println("Filters applied: $filters")
+            println("Found ${cells.size} cell(s)")
+
+        } catch (e: IllegalArgumentException) {
+            resultsTextArea.text = "Error: ${e.message}"
+        } catch (e: Exception) {
+            resultsTextArea.text = "Error querying database: ${e.message}"
+            e.printStackTrace()
+        }
     }
 
     fun queryRectangle() {
@@ -246,21 +281,21 @@ class GeographicTab : BorderPane() {
             resultsTextArea.text = "Error: Latitude 1 must be a valid number"
             return
         }
-        
+
         val lon1 = try {
             lon1Text.toDouble()
         } catch (e: NumberFormatException) {
             resultsTextArea.text = "Error: Longitude 1 must be a valid number"
             return
         }
-        
+
         val lat2 = try {
             lat2Text.toDouble()
         } catch (e: NumberFormatException) {
             resultsTextArea.text = "Error: Latitude 2 must be a valid number"
             return
         }
-        
+
         val lon2 = try {
             lon2Text.toDouble()
         } catch (e: NumberFormatException) {
@@ -273,22 +308,191 @@ class GeographicTab : BorderPane() {
             resultsTextArea.text = "Error: Latitudes must be between -90 and 90"
             return
         }
-        
+
         if (lon1 < -180 || lon1 > 180 || lon2 < -180 || lon2 > 180) {
             resultsTextArea.text = "Error: Longitudes must be between -180 and 180"
             return
         }
 
-        // TODO: Implement actual database query for rectangle area
-        resultsTextArea.text = "Querying rectangle area:\n" +
-                              "Corner 1: ($lat1, $lon1)\n" +
-                              "Corner 2: ($lat2, $lon2)\n\n" +
-                              "This feature is under development."
-        
-        println("Querying rectangle - Corner1: ($lat1, $lon1), Corner2: ($lat2, $lon2)")
+        // Check if controller is available
+        if (controller == null) {
+            resultsTextArea.text = "Error: Controller not initialized. Please restart the application."
+            return
+        }
+
+        try {
+            // Show processing message
+            resultsTextArea.text = "Querying rectangle area:\n" +
+                    "Corner 1: ($lat1, $lon1)\n" +
+                    "Corner 2: ($lat2, $lon2)\n" +
+                    "Processing..."
+
+            // Extract filters from main UI
+            val filters = extractFiltersFromMainView()
+
+            // Query the database through controller
+            val cells = controller!!.queryCellsInRectangle(
+                lat1 = lat1,
+                lon1 = lon1,
+                lat2 = lat2,
+                lon2 = lon2,
+                filters = filters
+            )
+
+            // Store results for export
+            lastQueryResults = cells
+
+            // Format and display results
+            resultsTextArea.text = formatResults(cells, "Rectangle", "Corners: ($lat1, $lon1) to ($lat2, $lon2)", filters)
+
+            println("Querying rectangle - Corner1: ($lat1, $lon1), Corner2: ($lat2, $lon2)")
+            println("Filters applied: $filters")
+            println("Found ${cells.size} cell(s)")
+
+        } catch (e: IllegalArgumentException) {
+            resultsTextArea.text = "Error: ${e.message}"
+        } catch (e: Exception) {
+            resultsTextArea.text = "Error querying database: ${e.message}"
+            e.printStackTrace()
+        }
     }
 
-    // Public methods for integration with controller
+    private fun extractFiltersFromMainView(): FilterParams {
+        val mainView = this.mainView
+        if (mainView == null) {
+            println("WARNING: MainView not set, using empty filters")
+            return FilterParams()
+        }
+
+        // Extract technology filters
+        val technologyCheckboxes = mainView.getTechnologyCheckboxes()
+        val selectedTechnologies = technologyCheckboxes
+            .filter { it.isSelected }
+            .mapNotNull { checkbox ->
+                when (checkbox.text) {
+                    "2G" -> 2
+                    "3G" -> 3
+                    "4G" -> 4
+                    "5G" -> 5
+                    "NR-IoT" -> 10
+                    else -> null
+                }
+            }
+
+        // Extract operator filters
+        val operatorCheckboxes = mainView.getOperatorCheckboxes()
+        val selectedOperators = operatorCheckboxes
+            .filter { it.isSelected }
+            .map { it.text }
+
+        // Extract date filters
+        val datePickers = mainView.getDatePickers()
+        val fromDate = datePickers.getOrNull(0)?.value?.toString()
+        val toDate = datePickers.getOrNull(1)?.value?.toString()
+
+        println("Extracted filters:")
+        println("  Technologies: $selectedTechnologies")
+        println("  Operators: $selectedOperators")
+        println("  Date range: $fromDate to $toDate")
+
+        return FilterParams(
+            technologies = selectedTechnologies,
+            operators = selectedOperators,
+            startDate = fromDate,
+            endDate = toDate
+        )
+    }
+
+    private fun formatResults(
+        cells: List<com.geocell.desktopanalyst.model.domain.Cell>,
+        queryType: String,
+        areaInfo: String,
+        filters: FilterParams
+    ): String {
+        val header = "$queryType Query Results\n" +
+                "Area: $areaInfo\n" +
+                formatFiltersInfo(filters) +
+                "Found ${cells.size} cell(s)\n" +
+                "=".repeat(60) + "\n"
+
+        if (cells.isEmpty()) {
+            return header + "No cells found within the specified area and filters."
+        }
+
+        val results = cells.mapIndexed { index, cell ->
+            "${index + 1}. CGI: ${cell.cgi ?: "N/A"}\n" +
+                    "   Technology: ${getTechnologyName(cell.technology)}\n" +
+                    "   Operator: ${cell.mccMnc?.operator ?: "N/A"}\n" +
+                    "   Name: ${cell.name ?: "N/A"}\n" +
+                    "   LAC/TAC: ${cell.lacTac}\n" +
+                    "   eCI/nCI: ${cell.eciNci ?: "N/A"}\n" +
+                    "   Band: ${cell.band?.band ?: "N/A"}\n" +
+                    "   Location: ${formatLocation(cell.location)}\n"
+        }.joinToString("\n")
+
+        return header + results
+    }
+
+    private fun formatFiltersInfo(filters: FilterParams): String {
+        val info = StringBuilder()
+
+        if (filters.technologies.isNotEmpty()) {
+            val techNames = filters.technologies.map { getTechnologyName(it) }
+            info.append("Technologies: ${techNames.joinToString(", ")}\n")
+        }
+
+        if (filters.operators.isNotEmpty()) {
+            info.append("Operators: ${filters.operators.joinToString(", ")}\n")
+        }
+
+        if (filters.sameNetwork) {
+            info.append("Same network only: Yes\n")
+        }
+
+        if (filters.startDate != null || filters.endDate != null) {
+            info.append("Date range: ${filters.startDate ?: "Any"} to ${filters.endDate ?: "Any"}\n")
+        }
+
+        return info.toString()
+    }
+
+    private fun getTechnologyName(technologyCode: Int): String {
+        return when (technologyCode) {
+            2 -> "2G"
+            3 -> "3G"
+            4 -> "4G"
+            5 -> "5G"
+            10 -> "NR-IoT"
+            else -> "Unknown ($technologyCode)"
+        }
+    }
+
+    private fun formatLocation(location: com.geocell.desktopanalyst.model.domain.Location?): String {
+        if (location == null) return "No location data"
+
+        val coords = location.coordinates
+        val address = location.address
+        val postal = location.postalDesignation
+
+        return if (coords != null) {
+            val coordStr = "(${coords.y}, ${coords.x})"
+            val addressStr = if (address != null) "$address, " else ""
+            val postalStr = if (postal != null) postal else ""
+            "$addressStr$postalStr $coordStr"
+        } else {
+            "No coordinates"
+        }
+    }
+
+    // Public methods for integration with controller and main view
+    fun setController(controller: com.geocell.desktopanalyst.controller.MainController) {
+        this.controller = controller
+    }
+
+    fun setMainView(mainView: MainView) {
+        this.mainView = mainView
+    }
+
     fun setResults(content: String) {
         resultsTextArea.text = content
     }
@@ -304,4 +508,5 @@ class GeographicTab : BorderPane() {
     fun getQueryRectangleButton(): Button = queryRectangleButton
     fun getResultsTextArea(): TextArea = resultsTextArea
     fun getQueryCircle() = queryCircle()
+    fun getLastQueryResults(): List<com.geocell.desktopanalyst.model.domain.Cell> = lastQueryResults
 }

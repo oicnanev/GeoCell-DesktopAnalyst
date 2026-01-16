@@ -1,0 +1,169 @@
+// KmzExporterApp.kt - versão simplificada
+package com.geocell.desktopanalyst
+
+import com.geocell.desktopanalyst.controller.MainController
+import com.geocell.desktopanalyst.model.*
+import com.geocell.desktopanalyst.service.FilterService
+import com.geocell.desktopanalyst.view.MainView
+import javafx.application.Application
+import javafx.scene.Scene
+import javafx.scene.control.Alert
+import javafx.scene.control.Alert.AlertType
+import javafx.stage.Stage
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.javafx.JavaFx
+import kotlinx.coroutines.launch
+import java.util.logging.ConsoleHandler
+import java.util.logging.Level
+import java.util.logging.Logger
+
+class KmzExporterApp : Application() {
+    init {
+        // Configurar logging
+        val logger = Logger.getLogger("")
+        logger.level = Level.INFO
+
+        val handler = ConsoleHandler()
+        handler.level = Level.INFO
+        logger.addHandler(handler)
+
+        println("=== Application Starting ===")
+    }
+    private val controller = MainController()
+    private val scope = CoroutineScope(Dispatchers.JavaFx)
+    private val filterService = FilterService()
+
+    override fun start(primaryStage: Stage) {
+        primaryStage.title = "Cell KMZ Exporter - Desktop Analyst"
+        val mainView = MainView()
+        controller.initializeDatabase()
+        setupEventHandlers(mainView)
+
+        val scene = Scene(mainView, 800.0, 700.0)
+        primaryStage.scene = scene
+        primaryStage.show()
+    }
+
+    private fun setupEventHandlers(mainView: MainView) {
+        // Passar controller para a tab
+        mainView.getNeighborsTab().setController(controller)
+
+        // **1. Botão QueryDB principal (para teste rápido)**
+        mainView.getQueryButton().setOnAction {
+            println("QueryDB button clicked")
+
+            // Extrair filtros da UI principal
+            val filters = extractFiltersFromMainView(mainView)
+
+            // Atualizar filtros no controller
+            controller.updateFilters(filters)
+
+            // Mostrar mensagem
+            showInfoDialog("Filters Updated",
+                "Filters have been updated. Now use the Neighbors tab to query.")
+        }
+
+        // **2. Botão Query na NeighborsTab**
+        mainView.getNeighborsTab().getQueryButton().setOnAction {
+            // Extrair filtros atuais da UI
+            val filters = extractFiltersFromMainView(mainView)
+
+            // Atualizar filtros no controller
+            controller.updateFilters(filters)
+
+            // Executar query com filtros atualizados
+            mainView.getNeighborsTab().queryNeighbors()
+        }
+
+        // **3. Botão Export**
+        mainView.getExportButton().setOnAction {
+            println("Export to KMZ button clicked")
+            scope.launch {
+                showInfoDialog("Export",
+                    "Export functionality will be implemented soon.")
+            }
+        }
+
+        val geographicTab = mainView.getGeographicTab()
+        geographicTab.getQueryCircleButton().setOnAction { geographicTab.queryCircle() }
+        geographicTab.getQueryRectangleButton().setOnAction { geographicTab.queryRectangle() }
+
+        val administrativeTab = mainView.getAdministrativeTab()
+        administrativeTab.getQueryButton().setOnAction { administrativeTab.queryAdministrativeRegion() }
+
+        val networkTab = mainView.getNetworkTab()
+        networkTab.getQueryLacTacButton().setOnAction { networkTab.queryByLacTac() }
+        networkTab.getQueryEnbGnbButton().setOnAction { networkTab.queryByEnbGnb() }
+        networkTab.getQueryBandButton().setOnAction { networkTab.queryByBand() }
+    }
+
+    // **Função para extrair filtros da MainView**
+    private fun extractFiltersFromMainView(mainView: MainView): NeighborFilters {
+        val technologyCheckboxes = mainView.getTechnologyCheckboxes()
+        val operatorCheckboxes = mainView.getOperatorCheckboxes()
+        val datePickers = mainView.getDatePickers()
+
+        // Se tiver FilterService, use-o
+        return filterService.extractFiltersFromUI(
+            technologyCheckboxes,
+            operatorCheckboxes,
+            datePickers
+        )
+    }
+
+    // **OU, se não tiver FilterService, faça manualmente:**
+    private fun extractFiltersManually(mainView: MainView): NeighborFilters {
+        val techCheckboxes = mainView.getTechnologyCheckboxes()
+        val operatorCheckboxes = mainView.getOperatorCheckboxes()
+        val datePickers = mainView.getDatePickers()
+
+        val techFilter = TechnologyFilter(
+            g2 = techCheckboxes.getOrNull(0)?.isSelected ?: false,
+            g3 = techCheckboxes.getOrNull(1)?.isSelected ?: false,
+            g4 = techCheckboxes.getOrNull(2)?.isSelected ?: false,
+            g5 = techCheckboxes.getOrNull(3)?.isSelected ?: false,
+            nrIoT = techCheckboxes.getOrNull(4)?.isSelected ?: false
+        )
+
+        val operatorFilter = OperatorFilter(
+            meo = operatorCheckboxes.getOrNull(0)?.isSelected ?: false,
+            nos = operatorCheckboxes.getOrNull(1)?.isSelected ?: false,
+            vodafone = operatorCheckboxes.getOrNull(2)?.isSelected ?: false,
+            digi = operatorCheckboxes.getOrNull(3)?.isSelected ?: false
+        )
+
+        val dateFilter = DateFilter(
+            from = datePickers.getOrNull(0)?.value,
+            to = datePickers.getOrNull(1)?.value
+        )
+
+        return NeighborFilters(
+            technology = techFilter,
+            operator = operatorFilter,
+            dates = dateFilter
+        )
+    }
+
+    // Métodos auxiliares para diálogos
+    private fun showInfoDialog(title: String, message: String) {
+        Alert(AlertType.INFORMATION).apply {
+            this.title = title
+            this.contentText = message
+        }.showAndWait()
+    }
+
+    private fun showErrorDialog(title: String, message: String) {
+        Alert(AlertType.ERROR).apply {
+            this.title = title
+            this.contentText = message
+        }.showAndWait()
+    }
+
+    companion object {
+        @JvmStatic
+        fun main(args: Array<String>) {
+            launch(KmzExporterApp::class.java, *args)
+        }
+    }
+}

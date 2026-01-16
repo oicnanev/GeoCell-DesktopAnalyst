@@ -15,7 +15,6 @@ class FilterSection: GridPane() {
     private val technologyCheckboxes = mutableListOf<CheckBox>()
     private val operatorCheckboxes = mutableListOf<CheckBox>()
     private val datePickers = mutableListOf<DatePicker>()
-    private lateinit var queryButton: Button
     private lateinit var exportButton: Button
 
     init {
@@ -124,11 +123,6 @@ class FilterSection: GridPane() {
         val buttonsBox = VBox(10.0).apply {
             alignment = Pos.CENTER_RIGHT
             children.addAll(
-                Button("Query DB").apply {
-                    prefHeight = 26.0
-                    prefWidth = 105.0
-                    queryButton = this
-                },
                 Button("Export to KMZ").apply {
                     exportButton = this
                 }
@@ -145,6 +139,5 @@ class FilterSection: GridPane() {
     fun getTechnologyCheckboxes(): List<CheckBox> = technologyCheckboxes
     fun getOperatorCheckboxes(): List<CheckBox> = operatorCheckboxes
     fun getDatePickers(): List<DatePicker> = datePickers
-    fun getQueryButton(): Button = queryButton
     fun getExportButton(): Button = exportButton
 }

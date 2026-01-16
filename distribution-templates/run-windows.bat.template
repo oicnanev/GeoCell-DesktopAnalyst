@@ -1,0 +1,32 @@
+@echo off
+echo === KMZ Exporter ===
+echo Versão: {{VERSION}}
+echo.
+
+REM Verificar Java
+where java >nul 2>nul
+if %errorlevel% neq 0 (
+    echo ❌ Java não encontrado!
+    echo Por favor, instale Java 17 ou superior.
+    echo Visite: https://adoptium.net/
+    echo ou execute winget install Microsoft.OpenJDK.25
+    pause
+    exit /b 1
+)
+
+REM Executar aplicação
+echo ✓ Java encontrado
+echo Iniciando aplicação...
+echo.
+
+java ^
+  --module-path=javafx\lib ^
+  --add-modules=javafx.controls,javafx.fxml,javafx.graphics,javafx.base ^
+  --add-opens=javafx.controls/javafx.scene.control=ALL-UNNAMED ^
+  --add-opens=javafx.graphics/javafx.scene=ALL-UNNAMED ^
+  --add-opens=java.base/java.lang=ALL-UNNAMED ^
+  -Xmx2048m ^
+  -jar KMZ-Exporter.jar
+
+echo.
+pause

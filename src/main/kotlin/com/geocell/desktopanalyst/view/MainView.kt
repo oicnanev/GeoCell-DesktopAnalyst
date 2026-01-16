@@ -15,7 +15,8 @@ import javafx.scene.layout.VBox
 
 class MainView(): VBox() {
     // Main components
-    private val menuBar = createMenuBar()
+    //private val menuBar = createMenuBar()
+    private val menuBar: MenuBar? = null
     private val tabPane = TabPane().apply {
         tabClosingPolicy = TabPane.TabClosingPolicy.UNAVAILABLE
     }
@@ -25,13 +26,15 @@ class MainView(): VBox() {
         setupLayout()
         setupTabs()
         setupStyles()
+        setupTabChangeListener()
     }
 
     private fun setupLayout() {
         spacing = 10.0
         padding = Insets(10.0)
 
-        children.addAll(menuBar, tabPane, filterSection) // CORRIGIDO: adicionar filterSection
+        if (menuBar != null) children.add(menuBar)
+        children.addAll(tabPane, filterSection)
         setVgrow(tabPane, Priority.ALWAYS)
     }
 
@@ -110,6 +113,28 @@ class MainView(): VBox() {
         // To add styles
     }
 
+    private fun setupTabChangeListener() {
+        tabPane.selectionModel.selectedItemProperty().addListener { _, _, newTab ->
+            updateFiltersBasedOnTab(newTab)
+        }
+        // Initialize filters for the first tab
+        updateFiltersBasedOnTab(tabPane.selectionModel.selectedItem)
+    }
+
+    private fun updateFiltersBasedOnTab(selectedTab: Tab?) {
+        val isTimestampTab = selectedTab?.text == "Timestamp"
+
+        // Disable/enable technology and operator filters based on tab
+        filterSection.getTechnologyCheckboxes().forEach { it.isDisable = isTimestampTab }
+        filterSection.getOperatorCheckboxes().forEach { it.isDisable = isTimestampTab }
+
+        // Clear selections when disabled
+        if (isTimestampTab) {
+            filterSection.getTechnologyCheckboxes().forEach { it.isSelected = false }
+            filterSection.getOperatorCheckboxes().forEach { it.isSelected = false }
+        }
+    }
+
     // Public Methods to integrate with the Controller
     fun getTimestampTab(): TimestampTab {
         return tabPane.tabs[0].content as TimestampTab
@@ -138,8 +163,6 @@ class MainView(): VBox() {
     fun getOperatorCheckboxes(): List<CheckBox> = filterSection.getOperatorCheckboxes()
 
     fun getDatePickers(): List<DatePicker> = filterSection.getDatePickers()
-
-    fun getQueryButton(): Button = filterSection.getQueryButton()
 
     fun getExportButton(): Button = filterSection.getExportButton()
 }
